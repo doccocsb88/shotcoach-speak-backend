@@ -17,14 +17,22 @@ export async function POST(request: Request) {
     });
     const prompt = buildDirectCoachPrompt(body.coachMode, body.coachPreferences);
 
-    const result = await getOpenAIClient().images.edit({
+    const imageEditParams = {
       model: env.OPENAI_IMAGE_MODEL,
       image: imageFile,
       prompt,
       size: env.OPENAI_IMAGE_SIZE,
-      quality: getImageEditQualityForTool("ai_coach"),
-      response_format: "b64_json"
-    });
+      quality: getImageEditQualityForTool("ai_coach")
+    } as const;
+
+    const result = await getOpenAIClient().images.edit(
+      env.OPENAI_IMAGE_MODEL === "gpt-image-1"
+        ? imageEditParams
+        : {
+            ...imageEditParams,
+            response_format: "b64_json"
+          }
+    );
     const generatedImageBase64 = result.data?.[0]?.b64_json ?? null;
 
     return jsonOk({

@@ -167,6 +167,67 @@ export interface GenerationRecipe {
   };
 }
 
+export interface RecipeParametersPayload {
+  filmSimulation: string;
+  highlight: number;
+  shadow: number;
+  color: number;
+  sharpness: number;
+  clarity: number;
+  grain: string;
+  dynamicRange: string;
+  whiteBalance: string;
+}
+
+export interface PromptPresetPayload {
+  mood: string;
+  colorPalette: string;
+  lighting: string;
+  contrast: string;
+  saturation: string;
+  grainDescription: string;
+  negativePrompt: string;
+}
+
+export interface WhiteBalancePayload {
+  mode: string;
+  redShift: number;
+  blueShift: number;
+}
+
+export interface GrainPayload {
+  enabled: boolean;
+  size: string;
+  strength: string;
+}
+
+export interface PhotoRecipePayload {
+  id: string;
+  name?: string;
+  title?: string;
+  subtitle?: string;
+  category?: string;
+  tags?: string[];
+  description?: string;
+  recipeParameters?: RecipeParametersPayload;
+  promptPreset?: PromptPresetPayload;
+  filmSimulation?: string;
+  whiteBalance?: WhiteBalancePayload;
+  dynamicRange?: string;
+  grain?: GrainPayload;
+  colorChromeEffect?: string;
+  colorChromeFXBlue?: string;
+  highlight?: number;
+  shadow?: number;
+  color?: number;
+  sharpness?: number;
+  noiseReduction?: number;
+  clarity?: number;
+  exposureCompensation?: string;
+  mood?: string;
+  recommendedFor?: string[];
+}
+
 export interface Suggestion {
   title: string;
   concept: string;

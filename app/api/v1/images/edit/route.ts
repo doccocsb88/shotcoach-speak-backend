@@ -26,14 +26,22 @@ export async function POST(request: Request) {
       ? buildConservativeImageEditPrompt(body.prompt)
       : body.prompt;
 
-    const result = await getOpenAIClient().images.edit({
+    const imageEditParams = {
       model: env.OPENAI_IMAGE_MODEL,
       image: imageFile,
       prompt: effectivePrompt,
       size: env.OPENAI_IMAGE_SIZE,
-      quality: getImageEditQualityForTool(body.toolId),
-      response_format: "b64_json"
-    });
+      quality: getImageEditQualityForTool(body.toolId)
+    } as const;
+
+    const result = await getOpenAIClient().images.edit(
+      env.OPENAI_IMAGE_MODEL === "gpt-image-1"
+        ? imageEditParams
+        : {
+            ...imageEditParams,
+            response_format: "b64_json"
+          }
+    );
     const generatedImageBase64 = result.data?.[0]?.b64_json ?? null;
 
     let qualityEvaluation: QualityEvaluationResult | null = null;

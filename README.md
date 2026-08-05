@@ -20,6 +20,12 @@ Backend scaffold for migrating ShotCoach AI OpenAI calls from mobile client to a
 - `POST /api/v1/coach/analyze`
 - `POST /api/v1/coach/direct-edit`
 - `POST /api/v1/images/edit`
+- `POST /api/v1/tools/edit`
+- `POST /api/v1/recipes/apply`
+
+## Mobile integration
+
+- Detailed mobile integration doc: [docs/mobile-integration.md](./docs/mobile-integration.md)
 
 ## Prompt mapping included
 
