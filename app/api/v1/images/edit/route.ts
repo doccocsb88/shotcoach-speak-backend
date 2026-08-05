@@ -1,4 +1,4 @@
-import { getEnv } from "@/lib/config";
+import { getEnv, isGptImageModel } from "@/lib/config";
 import { decodeBase64Image, toUint8Array } from "@/lib/images";
 import { jsonError, jsonOk } from "@/lib/http";
 import { getOpenAIClient } from "@/lib/openai";
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       } as const;
 
       const result = await getOpenAIClient().images.edit(
-        env.OPENAI_IMAGE_MODEL === "gpt-image-1"
+        isGptImageModel(env.OPENAI_IMAGE_MODEL)
           ? imageEditParams
           : {
               ...imageEditParams,

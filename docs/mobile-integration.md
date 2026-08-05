@@ -250,7 +250,7 @@ Tạo nhanh một ảnh reference theo `coachMode`, không cần qua bước ch�
 {
   "generatedImageBase64": "<base64 png>",
   "promptUsed": "User context (shooting context: nature)...",
-  "model": "gpt-image-1",
+  "model": "gpt-image-2",
   "size": "1024x1536"
 }
 ```
@@ -321,7 +321,7 @@ Tạo ảnh từ prompt cụ thể. Đây là endpoint nên dùng sau khi user �
 ```json
 {
   "generatedImageBase64": "<base64 png>",
-  "model": "gpt-image-1",
+  "model": "gpt-image-2",
   "size": "1024x1536",
   "toolId": "ai_coach",
   "promptUsed": "Edit the uploaded photo as a realistic ShotCoach AI photography coaching reference...",
@@ -522,7 +522,7 @@ curl -X POST https://shotcoachai-backend.vercel.app/api/v1/images/edit \
 - backend nhận base64 trực tiếp
 - `analyze` là text + structured output
 - `direct-edit` và `images/edit` trả ảnh bằng `generatedImageBase64`
-- output image hiện tại đang dùng model `gpt-image-1`
+- output image hiện tại đang dùng model `gpt-image-2`
 - output size hiện tại mặc định là `1024x1536`
 
 ## 15. Recommendation ngắn cho app team

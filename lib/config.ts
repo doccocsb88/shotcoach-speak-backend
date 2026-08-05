@@ -5,7 +5,7 @@ export const imageSizeSchema = z.enum(["1024x1024", "1024x1536", "1536x1024", "a
 export const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_MODEL: z.string().default("gpt-4.1-mini"),
-  OPENAI_IMAGE_MODEL: z.string().default("gpt-image-1"),
+  OPENAI_IMAGE_MODEL: z.string().default("gpt-image-2"),
   OPENAI_IMAGE_SIZE: imageSizeSchema.default("1024x1536"),
   OPENAI_IMAGE_EDIT_QUALITY: z.enum(["low", "medium", "high"]).default("medium"),
   AI_COACH_FLOW: z.string().default("v2"),
@@ -17,6 +17,10 @@ export const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(20)
 });
+
+export function isGptImageModel(model: string) {
+  return model.startsWith("gpt-image-");
+}
 
 export function getEnv() {
   return envSchema.parse({

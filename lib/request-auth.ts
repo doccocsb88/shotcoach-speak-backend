@@ -1,4 +1,4 @@
-import { getFirebaseAuth, verifyFirebaseAppCheckToken } from "@/lib/firebase-admin";
+import { verifyFirebaseAppCheckToken, verifyFirebaseIdToken } from "@/lib/firebase-admin";
 
 export type AuthenticatedRequestContext = {
   uid: string;
@@ -58,7 +58,7 @@ export async function authenticateRequest(request: Request): Promise<Authenticat
 
   try {
     const [decodedIdToken, appCheckResult] = await Promise.all([
-      getFirebaseAuth().verifyIdToken(idToken),
+      verifyFirebaseIdToken(idToken),
       verifyFirebaseAppCheckToken(appCheckToken)
     ]);
 
