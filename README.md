@@ -23,6 +23,13 @@ Backend scaffold for migrating ShotCoach AI OpenAI calls from mobile client to a
 - `POST /api/v1/tools/edit`
 - `POST /api/v1/recipes/apply`
 
+## Security
+
+- All production API routes now expect `Authorization: Bearer <firebase-id-token>`.
+- All production API routes now expect `X-Firebase-AppCheck: <app-check-token>`.
+- Firebase Admin credentials must be configured via `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`, or via application default credentials.
+- Basic in-memory rate limiting is enabled per `route + uid + ip`.
+
 ## Mobile integration
 
 - Detailed mobile integration doc: [docs/mobile-integration.md](./docs/mobile-integration.md)

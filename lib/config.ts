@@ -9,7 +9,13 @@ export const envSchema = z.object({
   OPENAI_IMAGE_SIZE: imageSizeSchema.default("1024x1536"),
   OPENAI_IMAGE_EDIT_QUALITY: z.enum(["low", "medium", "high"]).default("medium"),
   AI_COACH_FLOW: z.string().default("v2"),
-  ANALYSIS_PROVIDER: z.string().default("openai")
+  ANALYSIS_PROVIDER: z.string().default("openai"),
+  FIREBASE_PROJECT_ID: z.string().min(1).optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().min(1).optional(),
+  FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
+  FIREBASE_AUTH_ENFORCED: z.coerce.boolean().default(true),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(20)
 });
 
 export function getEnv() {
@@ -20,6 +26,12 @@ export function getEnv() {
     OPENAI_IMAGE_SIZE: process.env.OPENAI_IMAGE_SIZE,
     OPENAI_IMAGE_EDIT_QUALITY: process.env.OPENAI_IMAGE_EDIT_QUALITY,
     AI_COACH_FLOW: process.env.AI_COACH_FLOW,
-    ANALYSIS_PROVIDER: process.env.ANALYSIS_PROVIDER
+    ANALYSIS_PROVIDER: process.env.ANALYSIS_PROVIDER,
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
+    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY,
+    FIREBASE_AUTH_ENFORCED: process.env.FIREBASE_AUTH_ENFORCED,
+    RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
+    RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS
   });
 }

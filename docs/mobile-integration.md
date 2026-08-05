@@ -14,13 +14,22 @@ https://shotcoachai-backend.vercel.app
 
 ## 2. Auth và header
 
-Hiện tại backend chưa yêu cầu auth token.
+Backend hiện yêu cầu cả Firebase Anonymous Auth ID token và Firebase App Check token.
 
 Mọi request dùng:
 
 ```http
 Content-Type: application/json
+Authorization: Bearer <firebase-id-token>
+X-Firebase-AppCheck: <app-check-token>
 ```
+
+Yêu cầu vận hành:
+
+- Mobile phải sign in anonymous qua Firebase trước khi gọi backend.
+- Mobile phải initialize App Check và lấy token trước khi gọi backend.
+- Backend sẽ trả `401` nếu thiếu/invalid `Authorization` hoặc `X-Firebase-AppCheck`.
+- Backend sẽ trả `429` nếu vượt rate limit theo `uid + ip + route`.
 
 ## 3. Quy ước dữ liệu ảnh
 
@@ -509,7 +518,7 @@ curl -X POST https://shotcoachai-backend.vercel.app/api/v1/images/edit \
 
 ## 14. Backend behavior hiện tại cần mobile biết
 
-- backend không yêu cầu auth
+- backend yêu cầu Firebase ID token + App Check token
 - backend nhận base64 trực tiếp
 - `analyze` là text + structured output
 - `direct-edit` và `images/edit` trả ảnh bằng `generatedImageBase64`
@@ -528,4 +537,3 @@ Nếu muốn UX đơn giản hơn:
 
 1. Bỏ qua suggestion detail
 2. Dùng luôn `direct-edit` theo `coachMode`
-
