@@ -710,7 +710,7 @@ export function buildEditingToolPrompt(toolId: ToolId, instruction?: string) {
 
 export function getImageEditQualityForTool(toolId: ToolId) {
   if (toolId === "ai_coach") {
-    return "high" as const;
+    return "medium" as const;
   }
 
   if (toolId === "enhance_photo" || toolId === "upscale") {
