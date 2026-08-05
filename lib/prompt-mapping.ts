@@ -634,11 +634,17 @@ export function buildDirectCoachPrompt(mode: CoachMode, preferences?: CoachPrefe
   const contextPrefix = buildDirectModeContext(preferences);
   const basePrefix =
     "Keep the person, identity, clothing, background, and lighting completely identical to the original image.";
+  const facePreservationBlock = [
+    "Preserve the exact same face identity and facial structure.",
+    "Keep the same eyes, nose, mouth, jawline, cheek shape, hairstyle, skin tone identity, and natural facial proportions.",
+    "Do not beautify, age-shift, de-age, gender-shift, retouch, or reinterpret the face.",
+    "Do not change expression unless a minimal natural adjustment is required by the selected coaching mode."
+  ].join(" ");
   const intensityInstruction = directIntensityInstructions[mode][formatIntensity(preferences?.editIntensity)];
 
   const promptByMode: Record<CoachMode, string> = {
     composition: [
-      `${contextPrefix}${basePrefix} Improve only the composition of this shot.`,
+      `${contextPrefix}${basePrefix} ${facePreservationBlock} Improve only the composition of this shot.`,
       "Pick one realistic composition improvement such as rule of thirds, centered composition, leading lines, symmetry, framing, negative space, fill the frame, diagonal lines, golden ratio, triangular composition, balance, depth, layering, S-curve, asymmetry, patterns, repetition, minimalism, or visual weight.",
       "Adjust crop and subject placement within the same scene.",
       intensityInstruction,
@@ -646,24 +652,24 @@ export function buildDirectCoachPrompt(mode: CoachMode, preferences?: CoachPrefe
       `Composition reference: ${compositionReference}`
     ].join(" "),
     frame: [
-      `${contextPrefix}${basePrefix} Adjust the zoom level, camera distance, and crop to show the ideal framing for this shot.`,
+      `${contextPrefix}${basePrefix} ${facePreservationBlock} Adjust the zoom level, camera distance, and crop to show the ideal framing for this shot.`,
       intensityInstruction,
       "Keep the same person, pose, scene, and lighting."
     ].join(" "),
     angle: [
-      `${contextPrefix}${basePrefix} Change only the camera angle and perspective to show the best angle for this shot.`,
+      `${contextPrefix}${basePrefix} ${facePreservationBlock} Change only the camera angle and perspective to show the best angle for this shot.`,
       "Pick one realistic angle improvement such as eye level, high angle, low angle, bird's eye view, worm's eye view, ground level, 3/4 profile, side angle, back view, over-the-shoulder, dutch angle, tilt up, or tilt down.",
       intensityInstruction,
       "Do not change pose, outfit, face, background, lighting, or framing distance unless the angle change requires a tiny perspective shift.",
       `Angle reference: ${cameraAngleReference}`
     ].join(" "),
     pose: [
-      `${contextPrefix}${basePrefix} Improve the subject's body posture and pose to be more aesthetically pleasing, natural, and confident, without changing their face or clothes.`,
+      `${contextPrefix}${basePrefix} ${facePreservationBlock} Improve the subject's body posture and pose to be more aesthetically pleasing, natural, and confident, without changing their face or clothes.`,
       intensityInstruction,
       "Make the pose look professional."
     ].join(" "),
     comprehensive: [
-      `${contextPrefix}${basePrefix} This is COMPREHENSIVE MODE.`,
+      `${contextPrefix}${basePrefix} ${facePreservationBlock} This is COMPREHENSIVE MODE.`,
       "Improve the photo by combining pose, composition, camera angle, and framing into one stronger result.",
       "Keep the same person, identity, face, hairstyle, clothing, background, location, and lighting.",
       "You may adjust the subject pose, camera viewpoint, subject placement in the frame, crop, and camera distance as needed to create a more flattering and intentional photo.",
@@ -684,7 +690,7 @@ function buildDirectModeContext(preferences?: CoachPreferences) {
   return [
     `User context (shooting context: ${formatSceneContext(preferences?.sceneContext)}).`,
     "Tailor framing and composition for this type of shot within the same visible scene.",
-    `Comprehensive intensity preference: ${formatIntensity(preferences?.editIntensity)}.`
+    `Edit intensity preference: ${formatIntensity(preferences?.editIntensity)}.`
   ].join(" ");
 }
 
@@ -704,7 +710,7 @@ export function buildEditingToolPrompt(toolId: ToolId, instruction?: string) {
 
 export function getImageEditQualityForTool(toolId: ToolId) {
   if (toolId === "ai_coach") {
-    return "low" as const;
+    return "high" as const;
   }
 
   if (toolId === "enhance_photo" || toolId === "upscale") {
