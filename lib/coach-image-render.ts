@@ -100,6 +100,35 @@ async function runTextToImage(params: {
   );
 }
 
+export async function runLegacyCoachDirectImageEdit(params: {
+  client: OpenAI;
+  imageFile: File;
+  prompt: string;
+  model: string;
+  size: string;
+  quality: "low" | "medium" | "high";
+  isGptImage: boolean;
+}): Promise<CoachReferenceRenderResult> {
+  const result = await runImageEdit({
+    client: params.client,
+    imageFile: params.imageFile,
+    prompt: params.prompt,
+    model: params.model,
+    size: params.size,
+    quality: params.quality,
+    isGptImage: params.isGptImage
+  });
+
+  return {
+    generatedImageBase64: result.data?.[0]?.b64_json ?? null,
+    promptUsed: params.prompt,
+    renderPromptType: "fallback_prompt",
+    renderMode: "image_edit",
+    fallbackReason: null,
+    moderationRetryCount: 0
+  };
+}
+
 export async function runCoachReferenceImageEdit(params: {
   client: OpenAI;
   imageFile: File;

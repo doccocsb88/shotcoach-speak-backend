@@ -1,5 +1,5 @@
 import { getEnv, isGptImageModel } from "@/lib/config";
-import { runCoachReferenceImageEdit } from "@/lib/coach-image-render";
+import { runCoachReferenceImageEdit, runLegacyCoachDirectImageEdit } from "@/lib/coach-image-render";
 import { runCoachPhotographyCoach } from "@/lib/coach-photography-plan";
 import { decodeBase64Image, toUint8Array } from "@/lib/images";
 import { jsonError, jsonOk } from "@/lib/http";
@@ -74,6 +74,33 @@ export async function POST(request: Request) {
               render_mode: renderResult.renderMode === "text_to_image" ? "text_to_image_fallback" : renderResult.renderMode,
               fallback_reason: renderResult.fallbackReason,
               render_prompt_type: renderResult.renderPromptType
+            });
+          }
+        } catch (error) {
+          imageEditError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      if (!generatedImageBase64) {
+        try {
+          const legacyResult = await runLegacyCoachDirectImageEdit({
+            client: getOpenAIClient(),
+            imageFile,
+            prompt: promptUsed,
+            model: env.OPENAI_IMAGE_MODEL,
+            size: env.OPENAI_IMAGE_SIZE,
+            quality: getImageEditQualityForTool("ai_coach"),
+            isGptImage: isGptImageModel(env.OPENAI_IMAGE_MODEL)
+          });
+          generatedImageBase64 = legacyResult.generatedImageBase64;
+          promptUsed = legacyResult.promptUsed;
+          renderPromptType = legacyResult.renderPromptType;
+          moderationRetryCount = legacyResult.moderationRetryCount;
+
+          if (!coachUsed) {
+            console.info("[coach-direct-edit][legacy-direct-edit-fallback]", {
+              coachMode: body.coachMode,
+              render_prompt_type: renderPromptType
             });
           }
         } catch (error) {
