@@ -174,7 +174,7 @@ export interface CoachPhotographyTiming {
 
 export type CoachReferenceRenderMode = "image_edit" | "text_to_image";
 
-export type CoachReferenceRenderPromptType = "safe_render_prompt" | "text2image_prompt";
+export type CoachReferenceRenderPromptType = "safe_render_prompt" | "text2image_prompt" | "fallback_prompt";
 
 export type CoachReferenceFallbackReason = "image_edit_safety_rejection";
 
