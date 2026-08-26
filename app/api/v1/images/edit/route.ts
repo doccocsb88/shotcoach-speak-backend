@@ -14,6 +14,9 @@ import type { QualityEvaluationResult } from "@/lib/types";
 import { imageEditBodySchema } from "@/lib/validation";
 import { ZodError } from "zod";
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   return withProtectedRoute(request, "images-edit", async () => {
     try {

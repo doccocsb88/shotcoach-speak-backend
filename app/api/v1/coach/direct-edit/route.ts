@@ -9,6 +9,9 @@ import { withProtectedRoute } from "@/lib/protected-route";
 import { directEditBodySchema } from "@/lib/validation";
 import { ZodError } from "zod";
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   return withProtectedRoute(request, "coach-direct-edit", async () => {
     try {

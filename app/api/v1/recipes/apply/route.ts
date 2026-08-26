@@ -9,6 +9,9 @@ import type { QualityEvaluationResult } from "@/lib/types";
 import { recipeApplyBodySchema } from "@/lib/validation";
 import { ZodError } from "zod";
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   return withProtectedRoute(request, "recipes-apply", async () => {
     try {
