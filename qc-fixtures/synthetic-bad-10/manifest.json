@@ -1,0 +1,52 @@
+[
+  {
+    "id": "01-plaza-tiny-subject",
+    "file": "01-plaza-tiny-subject.jpg",
+    "target_defects": ["subject too small", "architecture overpowers subject", "upward wide-angle distortion", "stiff pose"]
+  },
+  {
+    "id": "02-cafe-joint-crop-clutter",
+    "file": "02-cafe-joint-crop-clutter.jpg",
+    "target_defects": ["crop near knee joint", "table dominates foreground", "bright background distraction", "stiff hand"]
+  },
+  {
+    "id": "03-stairs-missed-symmetry",
+    "file": "03-stairs-missed-symmetry.jpg",
+    "target_defects": ["tilted frame", "missed symmetry", "railing merger", "rigid pose"]
+  },
+  {
+    "id": "04-park-tree-merger",
+    "file": "04-park-tree-merger.jpg",
+    "target_defects": ["tree grows from head", "dark face", "busy background", "high camera angle"]
+  },
+  {
+    "id": "05-night-backlight-wide-angle",
+    "file": "05-night-backlight-wide-angle.jpg",
+    "target_defects": ["face underexposed", "bright window behind head", "wide-angle distortion", "cramped crop"]
+  },
+  {
+    "id": "06-window-mixed-light-crop",
+    "file": "06-window-mixed-light-crop.jpg",
+    "target_defects": ["blown facial highlight", "mixed color temperature", "no gaze space", "joint crop"]
+  },
+  {
+    "id": "07-seawall-horizon-neck",
+    "file": "07-seawall-horizon-neck.jpg",
+    "target_defects": ["tilted horizon", "horizon crosses neck", "excess sky", "awkward hands"]
+  },
+  {
+    "id": "08-mural-no-separation",
+    "file": "08-mural-no-separation.jpg",
+    "target_defects": ["outfit blends with mural", "no background separation", "tight shoulder edge", "closed pose"]
+  },
+  {
+    "id": "09-forest-leading-lines-light",
+    "file": "09-forest-leading-lines-light.jpg",
+    "target_defects": ["leading lines miss subject", "branch crosses head", "harsh dappled face light", "high camera angle"]
+  },
+  {
+    "id": "10-walkway-foreground-obstruction",
+    "file": "10-walkway-foreground-obstruction.jpg",
+    "target_defects": ["foreground blocks body", "subject too small", "leading lines point away", "excess ceiling"]
+  }
+]

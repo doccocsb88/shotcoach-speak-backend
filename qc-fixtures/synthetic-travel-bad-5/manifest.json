@@ -1,0 +1,67 @@
+[
+  {
+    "id": "01-landmark-blocked-tight",
+    "file": "01-landmark-blocked-tight.jpg",
+    "travel_scene": "monumental stone arch",
+    "target_defects": [
+      "subject blocks the destination",
+      "landmark edges are clipped",
+      "camera is tilted upward",
+      "mid-calf crop",
+      "stiff frontal pose"
+    ],
+    "coverage_intent": "Counterexample for 2x bias; a strong plan should consider stepping back and using 1x to restore destination context."
+  },
+  {
+    "id": "02-mountain-small-backlit",
+    "file": "02-mountain-small-backlit.jpg",
+    "travel_scene": "mountain overlook",
+    "target_defects": [
+      "subject is too small",
+      "face is underexposed",
+      "ridge intersects the head",
+      "railing clips the lower body",
+      "excess empty sky"
+    ],
+    "coverage_intent": "Test environmental portrait balance, exposure guidance and safe subject repositioning."
+  },
+  {
+    "id": "03-old-town-ultrawide-edge",
+    "file": "03-old-town-ultrawide-edge.jpg",
+    "travel_scene": "narrow old-town alley",
+    "target_defects": [
+      "ultra-wide facial distortion",
+      "subject is pressed against the frame edge",
+      "leaning verticals",
+      "bright alley exit competes with face",
+      "ankle crop"
+    ],
+    "coverage_intent": "Test cleaner background selection, perspective correction, 2x use and subject-edge cleanup."
+  },
+  {
+    "id": "04-temple-missed-symmetry",
+    "file": "04-temple-missed-symmetry.jpg",
+    "travel_scene": "historic temple courtyard",
+    "target_defects": [
+      "tilted frame",
+      "subject misses the symmetry axis",
+      "gate post merges with the head",
+      "excess foreground stone",
+      "rigid feet-together pose"
+    ],
+    "coverage_intent": "Test architecture-aware symmetry, phone leveling, subject scale and pose direction."
+  },
+  {
+    "id": "05-market-crowd-clutter",
+    "file": "05-market-crowd-clutter.jpg",
+    "travel_scene": "busy outdoor market",
+    "target_defects": [
+      "primary subject is clipped at the edge",
+      "background person merges with the head",
+      "foreground basket blocks the legs",
+      "bright red awning competes with the face",
+      "no gaze space"
+    ],
+    "coverage_intent": "Test subject isolation, crowd-aware reframing, foreground cleanup and lighting direction."
+  }
+]

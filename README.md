@@ -34,6 +34,16 @@ Backend scaffold for migrating ShotCoach AI OpenAI calls from mobile client to a
 
 - Detailed mobile integration doc: [docs/mobile-integration.md](./docs/mobile-integration.md)
 
+## Coach reference pipeline
+
+`POST /api/v1/coach/direct-edit` now runs a structured capture-plan flow:
+
+```text
+camera image -> photography analysis -> deterministic image prompt -> reference render -> visual QC -> optional single targeted retry
+```
+
+The response keeps the legacy coach fields and additionally exposes `coachResult.capture_plan`, `visualQcInitial`, `visualQcFinal`, `visualQcRetryCount`, `visualQcError`, `renderMode`, and `fallbackReason`. Configure the judge and retry policy with the `OPENAI_COACH_VISUAL_QC_*` variables in `.env.example`.
+
 ## Prompt mapping included
 
 - Coach Vision Analysis V2

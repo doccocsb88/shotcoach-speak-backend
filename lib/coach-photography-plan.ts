@@ -5,6 +5,11 @@ import {
   validateCoachPhotographyResult,
   type CoachPhotographyValidationResult
 } from "@/lib/coach-photography-validation";
+import {
+  composeCoachGenerationPrompt,
+  composeCoachSafeRenderPrompt,
+  composeCoachText2ImagePrompt
+} from "@/lib/coach-capture-plan";
 import { getEnv } from "@/lib/config";
 import { resizeForAnalysis } from "@/lib/images";
 import { getOpenAIClient } from "@/lib/openai";
@@ -26,6 +31,34 @@ const shotTypeSchema = z.enum([
 ]);
 
 const phoneZoomSchema = z.enum(["1x", "2x", "3x"]);
+
+const capturePlanSchema = z.object({
+  schema_version: z.literal("1.0"),
+  primary_change: z.string().min(1),
+  why: z.string().min(1),
+  subject_description: z.string().min(1),
+  scene_description: z.string().min(1),
+  lighting: z.string().min(1),
+  camera: z.object({
+    zoom: phoneZoomSchema,
+    move: z.string().min(1),
+    height: z.string().min(1),
+    viewpoint: z.string().min(1)
+  }),
+  frame: z.object({
+    body_crop: z.string().min(1),
+    subject_position: z.string().min(1),
+    gaze_space: z.string().min(1),
+    background_anchor: z.string().min(1),
+    edge_cleanup: z.string().min(1)
+  }),
+  subject_action: z.string().min(1),
+  capture_cue: z.string().min(1),
+  scene_affordances: z.array(z.string().min(1)).min(1),
+  preserve: z.array(z.string().min(1)).min(1),
+  avoid: z.array(z.string().min(1)).min(1),
+  feasibility_confidence: z.enum(["low", "medium", "high"])
+});
 
 export const photographyCoachResponseSchema = z.object({
   assessment: z.object({
@@ -74,10 +107,8 @@ export const photographyCoachResponseSchema = z.object({
     capture_moment: z.string().min(1),
     environmental_motion: z.string().min(1)
   }),
-  user_tips: z.array(z.string().min(1)).length(3),
-  generation_prompt: z.string().min(80).max(6000),
-  safe_render_prompt: z.string().min(80).max(6000),
-  text2image_prompt: z.string().min(80).max(6000)
+  capture_plan: capturePlanSchema,
+  user_tips: z.array(z.string().min(1)).length(3)
 });
 
 function coerceStringArray(value: unknown): string[] {
@@ -91,6 +122,15 @@ function coerceStringArray(value: unknown): string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+export function normalizeCoachPhoneZoom(value: unknown) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const match = value.toLowerCase().match(/(?:^|\b)([123])\s*x(?:\b|$)/);
+  return match ? `${match[1]}x` : value;
 }
 
 function normalizeCoachResponse(raw: unknown) {
@@ -120,10 +160,43 @@ function normalizeCoachResponse(raw: unknown) {
         }
       : record.opportunity;
 
+  const shotPlan =
+    record.shot_plan && typeof record.shot_plan === "object"
+      ? {
+          ...(record.shot_plan as Record<string, unknown>),
+          zoom: normalizeCoachPhoneZoom((record.shot_plan as Record<string, unknown>).zoom)
+        }
+      : record.shot_plan;
+
+  const capturePlan =
+    record.capture_plan && typeof record.capture_plan === "object"
+      ? {
+          ...(record.capture_plan as Record<string, unknown>),
+          camera:
+            (record.capture_plan as Record<string, unknown>).camera &&
+            typeof (record.capture_plan as Record<string, unknown>).camera === "object"
+              ? {
+                  ...((record.capture_plan as Record<string, unknown>).camera as Record<string, unknown>),
+                  zoom: normalizeCoachPhoneZoom(
+                    ((record.capture_plan as Record<string, unknown>).camera as Record<string, unknown>).zoom
+                  )
+                }
+              : (record.capture_plan as Record<string, unknown>).camera,
+          scene_affordances: coerceStringArray(
+            (record.capture_plan as Record<string, unknown>).scene_affordances
+          ),
+          preserve: coerceStringArray((record.capture_plan as Record<string, unknown>).preserve),
+          avoid: coerceStringArray((record.capture_plan as Record<string, unknown>).avoid)
+        }
+      : record.capture_plan;
+
   return {
     ...record,
     assessment,
-    opportunity
+    opportunity,
+    shot_plan: shotPlan,
+    capture_plan: capturePlan,
+    user_tips: coerceStringArray(record.user_tips)
   };
 }
 
@@ -228,13 +301,13 @@ Only choose 1x when the wide environment materially improves the photograph.
 
 If the person is small or the environment dominates, prefer 2x, 3x, moving closer, or tighter framing.
 
-Specify photographer distance, camera height (knee/hip/waist/lower chest/chest/eye level), and camera angle.
+Specify photographer movement as a relative action tied to a visible framing target, plus camera height (knee/hip/waist/lower chest/chest/eye level) and camera angle.
 
 ---
 
 ## PHASE 6 — SUBJECT SCALE
 
-Return current_subject_scale, recommended_subject_scale, and estimated_scale_change (e.g. "+25-35%").
+Return current_subject_scale, recommended_subject_scale, and estimated_scale_change. Describe the visible change relatively (for example, "from small to clearly dominant") instead of inventing a percentage.
 
 ---
 
@@ -295,60 +368,20 @@ Bad: long sentences or minor fixes like horizon correction unless severe.
 
 ---
 
-## GENERATION PROMPT
+## CAPTURE PLAN
 
-Write a complete internal photography specification containing in meaning:
+Return one capture_plan that a real user can reproduce with a smartphone.
 
-PRESERVE | CAMERA | COMPOSITION | POSE | ENVIRONMENT AND TIMING | LIGHTING | DO NOT
-
-Use specific geometry where reasonable: "4-6 meters", "waist height, nearly level", "25-30% larger" — not "moderate distance" or "dominant subject".
-
----
-
-## SAFE RENDER PROMPT (V7.1)
-
-Also create safe_render_prompt — the actual image-generation instruction for Step 2.
-
-It must preserve the same photography strategy as generation_prompt but use photography-action wording:
-
-- adjust hair
-- hold fabric
-- take a step
-- turn slightly
-- shift weight naturally
-- look toward camera / horizon
-
-Avoid unnecessary anatomical or body-region wording.
-
-Must still include: zoom, distance, camera height, angle, subject scale, framing, environment, timing, lighting, identity/location preservation, and negative constraints.
-
----
-
-## TEXT2IMAGE PROMPT (V7.2)
-
-Also create text2image_prompt — a standalone scene description used only if image edit is blocked by safety moderation.
-
-This prompt must NOT assume access to any uploaded source image.
-
-Do not use phrases such as:
-- source image
-- original photo
-- same person
-- preserve identity
-- from the reference
-- uploaded photo
-
-Describe everything needed to recreate the recommended shot from text alone:
-
-Scene: subject category, environment, weather
-Styling: clothing, accessories, hair
-Photography direction: zoom, distance, camera height, angle, framing, subject position, crop, horizon
-Action: pose and movement moment
-Lighting: natural light character
-Style: realistic smartphone travel portrait constraints
-
-Do not require matching a specific real person's face or identity.
-Use generic but specific scene language (for example: "an adult woman with long dark hair on a quiet sandy beach").
+- Choose exactly one primary_change. All other choices must support it.
+- Compare at least two plausible shot concepts internally, then return only the strongest feasible winner.
+- Treat composition rules as tools for visual intent, not a checklist.
+- Use visible framing targets and relative photographer actions. Prefer "step back until the frame runs from mid-thigh to head" over pseudo-exact claims such as meters, degrees, or percentage scale changes.
+- Phone zoom must be exactly one of: 1x, 2x, 3x.
+- subject_action must be one concise sequence of observable actions, not a list of anatomy fields.
+- scene_affordances must identify usable positions, surfaces, leading structures, clean background directions, blockers, or safe environmental motion that are actually visible.
+- Preserve the existing lighting character. Do not invent equipment or light that the user does not have.
+- feasibility_confidence must reflect whether the recommendation is physically supported by the visible scene.
+- subject_description and scene_description must be standalone descriptions. Do not use "same person", "source image", "uploaded photo", or other source-dependent wording in those two fields.
 
 ---
 
@@ -363,28 +396,63 @@ Return valid JSON only with schema_version "7.2":
   "shot_plan": { "zoom", "photographer_distance", "camera_height", "camera_angle", "current_subject_scale", "recommended_subject_scale", "estimated_scale_change", "subject_position", "crop", "horizon", "foreground", "background", "leading_lines", "negative_space" },
   "pose": { "body_angle", "weight_distribution", "front_leg", "back_leg", "hips", "shoulders", "left_arm", "right_arm", "hands", "head", "gaze", "expression" },
   "timing": { "capture_moment", "environmental_motion" },
-  "user_tips": ["", "", ""],
-  "generation_prompt": "",
-  "safe_render_prompt": "",
-  "text2image_prompt": ""
+  "capture_plan": {
+    "schema_version": "1.0",
+    "primary_change": "",
+    "why": "",
+    "subject_description": "",
+    "scene_description": "",
+    "lighting": "",
+    "camera": { "zoom": "1x|2x|3x", "move": "", "height": "", "viewpoint": "" },
+    "frame": { "body_crop": "", "subject_position": "", "gaze_space": "", "background_anchor": "", "edge_cleanup": "" },
+    "subject_action": "",
+    "capture_cue": "",
+    "scene_affordances": [""],
+    "preserve": [""],
+    "avoid": [""],
+    "feasibility_confidence": "low|medium|high"
+  },
+  "user_tips": ["", "", ""]
 }`;
 
-function buildSystemPrompt(mode: CoachMode) {
-  return `${SHOTCOACH_SYSTEM_PROMPT_V6}\n\n[Internal] Coaching focus: ${mode}. ${modeFocus[mode]}`;
+function buildPreferencesPrompt(preferences?: CoachPreferences) {
+  if (!preferences || Object.keys(preferences).length === 0) {
+    return "No optional user preferences were provided. Use balanced intensity.";
+  }
+
+  return [
+    `Edit intensity: ${preferences.editIntensity ?? "balanced"}.`,
+    preferences.sceneContext
+      ? `Intended context: ${preferences.sceneContext.replace(/_/g, " ")}; use only when consistent with visible evidence.`
+      : "",
+    preferences.gender ? `Gender presentation: ${preferences.gender.replace(/_/g, " ")}.` : "",
+    preferences.ageRange ? `Age range: ${preferences.ageRange.replace(/_/g, " ")}.` : "",
+    "Preferences may tune pose comfort and change magnitude, but must never override the visible person, scene, safety, or realism."
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildSystemPrompt(mode: CoachMode, preferences?: CoachPreferences) {
+  return `${SHOTCOACH_SYSTEM_PROMPT_V6}\n\n[Internal] Coaching focus: ${mode}. ${modeFocus[mode]}\n\n[Internal] User preferences:\n${buildPreferencesPrompt(preferences)}`;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Photography coach timed out after ${timeoutMs}ms`)), timeoutMs);
-    })
-  ]);
+  let timeout: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeout = setTimeout(
+      () => reject(new Error(`Photography coach timed out after ${timeoutMs}ms`)),
+      timeoutMs
+    );
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeout));
 }
 
 async function requestCoachJson(params: {
   dataUrl: string;
   mode: CoachMode;
+  preferences?: CoachPreferences;
   correctionMessage?: string;
 }) {
   const env = getEnv();
@@ -395,7 +463,7 @@ async function requestCoachJson(params: {
       type: "text",
       text:
         params.correctionMessage ??
-        "Analyze this photo and return the V7.2 JSON with assessment, opportunity, shot_plan, pose, timing, user_tips, generation_prompt, safe_render_prompt, and text2image_prompt."
+        "Analyze this photo and return the V7.2 JSON with assessment, opportunity, shot_plan, pose, timing, capture_plan, and user_tips. Do not write image-generation prompts; the backend composes them deterministically."
     },
     { type: "image_url", image_url: { url: params.dataUrl } }
   ];
@@ -404,7 +472,7 @@ async function requestCoachJson(params: {
     getOpenAIClient().chat.completions.create({
       model: env.OPENAI_PHOTOGRAPHY_COACH_MODEL,
       messages: [
-        { role: "system", content: buildSystemPrompt(params.mode) },
+        { role: "system", content: buildSystemPrompt(params.mode, params.preferences) },
         { role: "user", content: userContent }
       ],
       response_format: { type: "json_object" }
@@ -440,8 +508,12 @@ function shouldRetryValidation(validation: CoachPhotographyValidationResult) {
   );
 }
 
-function toCoachResult(mode: CoachMode, parsed: z.infer<typeof photographyCoachResponseSchema>): CoachPhotographyCoachResult {
-  return {
+function toCoachResult(
+  mode: CoachMode,
+  parsed: z.infer<typeof photographyCoachResponseSchema>,
+  preferences?: CoachPreferences
+): CoachPhotographyCoachResult {
+  const core = {
     schema_version: "7.2",
     mode,
     assessment: parsed.assessment,
@@ -449,10 +521,15 @@ function toCoachResult(mode: CoachMode, parsed: z.infer<typeof photographyCoachR
     shot_plan: parsed.shot_plan,
     pose: parsed.pose,
     timing: parsed.timing,
-    user_tips: parsed.user_tips,
-    generation_prompt: parsed.generation_prompt.trim(),
-    safe_render_prompt: parsed.safe_render_prompt.trim(),
-    text2image_prompt: parsed.text2image_prompt.trim()
+    capture_plan: parsed.capture_plan,
+    user_tips: parsed.user_tips
+  } as const;
+
+  return {
+    ...core,
+    generation_prompt: composeCoachGenerationPrompt(core, preferences),
+    safe_render_prompt: composeCoachSafeRenderPrompt(core, preferences),
+    text2image_prompt: composeCoachText2ImagePrompt(core, preferences)
   };
 }
 
@@ -461,13 +538,16 @@ export async function runCoachPhotographyCoach(params: {
   mode: CoachMode;
   preferences?: CoachPreferences;
 }): Promise<CoachPhotographyCoachResult & { validation: CoachPhotographyValidationResult }> {
-  void params.preferences;
   const resizedImage = await resizeForAnalysis(params.image);
   const dataUrl = `data:image/jpeg;base64,${resizedImage.toString("base64")}`;
 
   let parsed: z.infer<typeof photographyCoachResponseSchema>;
   try {
-    parsed = await requestCoachJson({ dataUrl, mode: params.mode });
+    parsed = await requestCoachJson({
+      dataUrl,
+      mode: params.mode,
+      preferences: params.preferences
+    });
   } catch (error) {
     if (!(error instanceof z.ZodError)) {
       throw error;
@@ -475,11 +555,14 @@ export async function runCoachPhotographyCoach(params: {
     parsed = await requestCoachJson({
       dataUrl,
       mode: params.mode,
+      preferences: params.preferences,
       correctionMessage:
-        "Your previous JSON did not match the required schema. Return valid JSON only with array fields for secondary_problems, scene_assets, missed_opportunities, plus generation_prompt, safe_render_prompt, and text2image_prompt."
+        `Your previous JSON did not match the required schema. Correct these exact issues:\n${error.issues
+          .map((issue) => `- ${issue.path.join(".")}: ${issue.message}`)
+          .join("\n")}\nReturn the complete JSON again. zoom values must be exactly 1x, 2x, or 3x. Array fields must be JSON arrays. Include capture_plan and do not include generated prompt prose.`
     });
   }
-  let result = toCoachResult(params.mode, parsed);
+  let result = toCoachResult(params.mode, parsed, params.preferences);
   let validation = validateCoachPhotographyResult(result);
 
   if (shouldRetryValidation(validation)) {
@@ -487,9 +570,10 @@ export async function runCoachPhotographyCoach(params: {
     parsed = await requestCoachJson({
       dataUrl,
       mode: params.mode,
+      preferences: params.preferences,
       correctionMessage
     });
-    result = toCoachResult(params.mode, parsed);
+    result = toCoachResult(params.mode, parsed, params.preferences);
     validation = validateCoachPhotographyResult(result);
   }
 

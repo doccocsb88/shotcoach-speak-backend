@@ -3,7 +3,7 @@ import { basename, join, resolve } from "node:path";
 
 import OpenAI from "openai";
 
-import { runCoachReferenceImageEdit } from "../lib/coach-image-render";
+import { runCoachReferenceFlow } from "../lib/coach-reference-flow";
 import { runCoachPhotographyCoach } from "../lib/coach-photography-plan";
 import { getEnv, isGptImageModel } from "../lib/config";
 import { resolveCoachEditPrompt } from "../lib/prompt-mapping";
@@ -45,6 +45,7 @@ async function main() {
   }
 
   loadEnvFile(resolve(import.meta.dirname, "../.env"));
+  process.env.OPENAI_COACH_VISUAL_QC_ENABLED ??= "true";
   const env = getEnv();
   const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   const imagePath = resolve(process.cwd(), imageArg);
@@ -85,10 +86,17 @@ async function main() {
   let fallbackReason: string | null = null;
   let moderationRetryCount = 0;
   let promptUsed = prompt;
+  let initialPromptUsed = prompt;
+  let visualQcInitial = null;
+  let visualQcFinal = null;
+  let visualQcRetryCount = 0;
+  let visualQcError: string | null = null;
 
   try {
-    const renderResult = await runCoachReferenceImageEdit({
+    const renderResult = await runCoachReferenceFlow({
       client,
+      sourceImage: imageBytes,
+      sourceMimeType: mimeType,
       imageFile,
       coachResult: coachPayload,
       model: env.OPENAI_IMAGE_MODEL,
@@ -102,6 +110,11 @@ async function main() {
     renderMode = renderResult.renderMode;
     fallbackReason = renderResult.fallbackReason;
     moderationRetryCount = renderResult.moderationRetryCount;
+    initialPromptUsed = renderResult.initialPromptUsed;
+    visualQcInitial = renderResult.visualQcInitial;
+    visualQcFinal = renderResult.visualQcFinal;
+    visualQcRetryCount = renderResult.visualQcRetryCount;
+    visualQcError = renderResult.visualQcError;
 
     const generatedImageBase64 = renderResult.generatedImageBase64;
     if (!generatedImageBase64) {
@@ -118,6 +131,12 @@ async function main() {
 
   writeFileSync(join(outputDir, `${prefix}__reference-prompt.txt`), promptUsed);
   writeFileSync(join(outputDir, `${prefix}__prompt.txt`), promptUsed);
+  if (visualQcInitial) {
+    writeFileSync(join(outputDir, `${prefix}__visual-qc-initial.json`), JSON.stringify(visualQcInitial, null, 2));
+  }
+  if (visualQcFinal) {
+    writeFileSync(join(outputDir, `${prefix}__visual-qc-final.json`), JSON.stringify(visualQcFinal, null, 2));
+  }
 
   writeFileSync(
     join(outputDir, `${prefix}__report.json`),
@@ -131,6 +150,11 @@ async function main() {
         renderMode,
         fallbackReason,
         moderationRetryCount,
+        initialPromptUsed,
+        visualQcInitial,
+        visualQcFinal,
+        visualQcRetryCount,
+        visualQcError,
         promptUsed,
         coachResult: coachPayload,
         validation,
@@ -157,6 +181,18 @@ async function main() {
     console.warn("validation_warnings", validation.warnings.join(" | "));
   }
   console.log("coachMs", coachLatencyMs, "editMs", imageEditLatencyMs);
+  if (visualQcFinal) {
+    console.log(
+      "visualQc",
+      visualQcFinal.total_score,
+      visualQcFinal.passed ? "passed" : "failed",
+      "retries",
+      visualQcRetryCount
+    );
+  }
+  if (visualQcError) {
+    console.warn("visual_qc_error", visualQcError);
+  }
 
   if (imageEditError) {
     process.exit(1);

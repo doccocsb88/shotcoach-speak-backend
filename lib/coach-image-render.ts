@@ -6,6 +6,7 @@ import type {
   CoachReferenceRenderMode,
   CoachReferenceRenderPromptType
 } from "@/lib/types";
+import { buildTargetedCoachRetryPrompt } from "@/lib/coach-capture-plan";
 import { wrapReferenceGenerationPrompt } from "@/lib/prompt-mapping";
 
 export interface CoachReferenceRenderResult {
@@ -47,7 +48,7 @@ function isModerationError(error: unknown) {
 
 async function runImageEdit(params: {
   client: OpenAI;
-  imageFile: File;
+  imageFile: File | File[];
   prompt: string;
   model: string;
   size: string;
@@ -72,6 +73,40 @@ async function runImageEdit(params: {
           response_format: "b64_json" as const
         }
   );
+}
+
+export async function runTargetedCoachImageEdit(params: {
+  client: OpenAI;
+  sourceImageFile: File;
+  generatedImageBase64: string;
+  retryInstruction: string;
+  model: string;
+  size: string;
+  quality: "low" | "medium" | "high";
+  isGptImage: boolean;
+}) {
+  const prompt = buildTargetedCoachRetryPrompt(params.retryInstruction);
+  const generatedImageFile = new File(
+    [new Uint8Array(Buffer.from(params.generatedImageBase64, "base64"))],
+    "coach-reference-retry.png",
+    { type: "image/png" }
+  );
+  const result = await runImageEdit({
+    client: params.client,
+    imageFile: params.isGptImage
+      ? [params.sourceImageFile, generatedImageFile]
+      : generatedImageFile,
+    prompt,
+    model: params.model,
+    size: params.size,
+    quality: params.quality,
+    isGptImage: params.isGptImage
+  });
+
+  return {
+    generatedImageBase64: result.data?.[0]?.b64_json ?? null,
+    prompt
+  };
 }
 
 async function runTextToImage(params: {

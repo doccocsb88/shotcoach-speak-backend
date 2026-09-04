@@ -18,8 +18,6 @@ const MOVEMENT_SIGNALS = [
   "flowing"
 ];
 
-const VAGUE_DISTANCE_TERMS = ["moderate distance", "close", "far", "medium distance"];
-const VAGUE_SCALE_TERMS = ["dominant", "bigger", "more prominent", "larger subject"];
 const LOW_IMPACT_TIP_TERMS = ["horizon", "straighten", "level horizon", "tilt"];
 
 const TEXT2IMAGE_SOURCE_DEPENDENT_TERMS = [
@@ -102,7 +100,7 @@ export function validateCoachPhotographyResult(result: CoachPhotographyCoachResu
   const generationPrompt = result.generation_prompt.toLowerCase();
   const safePrompt = result.safe_render_prompt.toLowerCase();
   const text2imagePrompt = result.text2image_prompt.toLowerCase();
-  const { shot_plan, opportunity, timing } = result;
+  const { shot_plan, opportunity, timing, capture_plan } = result;
 
   if (!shot_plan.zoom) {
     errors.push("HARD_VALIDATION: shot_plan.zoom missing");
@@ -110,6 +108,14 @@ export function validateCoachPhotographyResult(result: CoachPhotographyCoachResu
 
   if (!shot_plan.camera_height?.trim()) {
     errors.push("HARD_VALIDATION: camera_height missing");
+  }
+
+  if (!capture_plan.primary_change?.trim()) {
+    errors.push("HARD_VALIDATION: capture_plan.primary_change missing");
+  }
+
+  if (capture_plan.camera.zoom !== shot_plan.zoom) {
+    errors.push("HARD_VALIDATION: capture_plan camera zoom contradicts shot_plan.zoom");
   }
 
   if (!result.generation_prompt?.trim()) {
@@ -145,11 +151,11 @@ export function validateCoachPhotographyResult(result: CoachPhotographyCoachResu
       errors.push("HARD_VALIDATION: text2image_prompt must describe action or pose");
     }
 
-    if (shot_plan.zoom && !includesAny(text2imagePrompt, [shot_plan.zoom])) {
+    if (!includesAny(text2imagePrompt, [capture_plan.camera.zoom])) {
       warnings.push("SHOT_PLAN_NOT_FULLY_TRANSFERRED_TO_PROMPT: zoom missing from text2image_prompt");
     }
 
-    if (!includesAny(text2imagePrompt, [shot_plan.camera_height])) {
+    if (!includesAny(text2imagePrompt, [capture_plan.camera.height])) {
       warnings.push("SHOT_PLAN_NOT_FULLY_TRANSFERRED_TO_PROMPT: camera_height missing from text2image_prompt");
     }
   }
@@ -158,35 +164,28 @@ export function validateCoachPhotographyResult(result: CoachPhotographyCoachResu
     errors.push("HARD_VALIDATION: user_tips must contain exactly 3 items");
   }
 
-  if (shot_plan.zoom && !includesAny(generationPrompt, [shot_plan.zoom])) {
+  if (!includesAny(generationPrompt, [capture_plan.camera.zoom])) {
     errors.push("HARD_VALIDATION: zoom not represented in generation_prompt");
   }
 
-  const recommendedScale = shot_plan.recommended_subject_scale.toLowerCase();
-  if (recommendedScale.includes("larger") && !includesAny(generationPrompt, ["larger", "bigger", "%", "scale"])) {
-    errors.push("HARD_VALIDATION: recommended_subject_scale contradicts generation_prompt");
+  if (!includesAny(generationPrompt, [capture_plan.camera.height])) {
+    errors.push("HARD_VALIDATION: capture-plan camera height missing from generation_prompt");
   }
 
-  if (shot_plan.zoom && !includesAny(safePrompt, [shot_plan.zoom])) {
+  if (!includesAny(safePrompt, [capture_plan.camera.zoom])) {
     warnings.push("SHOT_PLAN_NOT_FULLY_TRANSFERRED_TO_PROMPT: zoom missing from safe_render_prompt");
   }
 
-  if (!includesAny(safePrompt, [shot_plan.camera_height])) {
+  if (!includesAny(safePrompt, [capture_plan.camera.height])) {
     warnings.push("SHOT_PLAN_NOT_FULLY_TRANSFERRED_TO_PROMPT: camera_height missing from safe_render_prompt");
   }
 
-  if (shot_plan.estimated_scale_change.trim()) {
-    const scaleSignals = ["larger", "smaller", "scale", "percent", "%", shot_plan.estimated_scale_change];
-    if (!includesAny(generationPrompt, scaleSignals)) {
-      warnings.push("SHOT_PLAN_NOT_FULLY_TRANSFERRED_TO_PROMPT: estimated_scale_change not in generation_prompt");
-    }
+  if (!includesAny(generationPrompt, [capture_plan.primary_change])) {
+    errors.push("HARD_VALIDATION: primary_change not represented in generation_prompt");
   }
 
-  if (isMeaningful(timing.capture_moment)) {
-    const timingSignals = ["wave", "wind", "moment", "timing", "step", "movement", "capture"];
-    if (!includesAny(generationPrompt, timingSignals)) {
-      warnings.push("ENVIRONMENTAL_TIMING_NOT_USED: capture_moment not in generation_prompt");
-    }
+  if (!includesAny(generationPrompt, [capture_plan.capture_cue])) {
+    warnings.push("ENVIRONMENTAL_TIMING_NOT_USED: capture cue missing from generation_prompt");
   }
 
   if (hasMovementOpportunity(result) && opportunity.shot_type === "full_body_portrait") {
@@ -201,19 +200,6 @@ export function validateCoachPhotographyResult(result: CoachPhotographyCoachResu
     if (weight.includes("even") || weight.includes("balanced evenly")) {
       warnings.push("STATIC_POSE_FOR_MOVEMENT_SHOT");
     }
-  }
-
-  const distance = shot_plan.photographer_distance.toLowerCase();
-  if (VAGUE_DISTANCE_TERMS.some((term) => distance.includes(term))) {
-    warnings.push("VAGUE_CAMERA_DISTANCE");
-  }
-
-  const recommended = shot_plan.recommended_subject_scale.toLowerCase();
-  if (
-    VAGUE_SCALE_TERMS.some((term) => recommended.includes(term)) &&
-    !shot_plan.estimated_scale_change.includes("%")
-  ) {
-    warnings.push("VAGUE_SUBJECT_SCALE");
   }
 
   const lowImpactTips = result.user_tips.filter((tip) =>
@@ -267,9 +253,10 @@ export function buildCoachCorrectionMessage(validation: CoachPhotographyValidati
     "",
     "If the scene relies on stepping, waves, wind, or flowing fabric, re-evaluate whether full_body_movement_portrait is stronger than a static portrait.",
     "Ensure user_tips are short, high-impact, and camera-action oriented.",
-    "Use specific geometry (e.g. 4-6 meters, waist height, 25-30% larger) in shot_plan and all three prompts.",
-    "Ensure safe_render_prompt faithfully implements the shot plan using photography-action wording.",
-    "Ensure text2image_prompt is a standalone scene description with no source-image dependency and no identity preservation.",
+    "Use relative, visible actions and framing targets that a phone photographer can reproduce; do not invent false precision.",
+    "Keep exactly one primary_change and make capture_plan internally consistent with shot_plan.",
+    "The backend composes all render prompts deterministically from capture_plan, so correct capture_plan rather than writing prompts.",
+    "Ensure subject_description and scene_description are standalone and do not depend on hidden source-image context.",
     "Keep the same JSON schema.",
     "Return corrected JSON only."
   ].join("\n");

@@ -8,6 +8,7 @@
 /.wrangler/
 /outputs/
 /qc-output/
+/qc-fixtures/**/*.jpg
 /work/
 
 # environment

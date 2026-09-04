@@ -1,6 +1,7 @@
 import { getEnv, isGptImageModel } from "@/lib/config";
-import { runCoachReferenceImageEdit, runLegacyCoachDirectImageEdit } from "@/lib/coach-image-render";
+import { runLegacyCoachDirectImageEdit } from "@/lib/coach-image-render";
 import { runCoachPhotographyCoach } from "@/lib/coach-photography-plan";
+import { runCoachReferenceFlow } from "@/lib/coach-reference-flow";
 import { decodeBase64Image, toUint8Array } from "@/lib/images";
 import { jsonError, jsonOk } from "@/lib/http";
 import { getOpenAIClient } from "@/lib/openai";
@@ -55,11 +56,20 @@ export async function POST(request: Request) {
       let renderPromptType = coachResult?.safe_render_prompt ? "safe_render_prompt" : "fallback_prompt";
       let moderationRetryCount = 0;
       let imageEditError: string | null = null;
+      let renderMode: "image_edit" | "text_to_image" = "image_edit";
+      let fallbackReason: string | null = null;
+      let initialPromptUsed: string | null = null;
+      let visualQcInitial = null;
+      let visualQcFinal = null;
+      let visualQcRetryCount = 0;
+      let visualQcError: string | null = null;
 
       if (coachResult) {
         try {
-          const renderResult = await runCoachReferenceImageEdit({
+          const renderResult = await runCoachReferenceFlow({
             client: getOpenAIClient(),
+            sourceImage: imageBytes,
+            sourceMimeType: body.mimeType,
             imageFile,
             coachResult,
             model: env.OPENAI_IMAGE_MODEL,
@@ -70,7 +80,14 @@ export async function POST(request: Request) {
           generatedImageBase64 = renderResult.generatedImageBase64;
           promptUsed = renderResult.promptUsed;
           renderPromptType = renderResult.renderPromptType;
+          renderMode = renderResult.renderMode;
+          fallbackReason = renderResult.fallbackReason;
           moderationRetryCount = renderResult.moderationRetryCount;
+          initialPromptUsed = renderResult.initialPromptUsed;
+          visualQcInitial = renderResult.visualQcInitial;
+          visualQcFinal = renderResult.visualQcFinal;
+          visualQcRetryCount = renderResult.visualQcRetryCount;
+          visualQcError = renderResult.visualQcError;
 
           if (renderResult.fallbackReason) {
             console.info("[coach-direct-edit][render-fallback]", {
@@ -98,7 +115,10 @@ export async function POST(request: Request) {
           generatedImageBase64 = legacyResult.generatedImageBase64;
           promptUsed = legacyResult.promptUsed;
           renderPromptType = legacyResult.renderPromptType;
+          renderMode = legacyResult.renderMode;
+          fallbackReason = legacyResult.fallbackReason;
           moderationRetryCount = legacyResult.moderationRetryCount;
+          imageEditError = null;
 
           if (!coachUsed) {
             console.info("[coach-direct-edit][legacy-direct-edit-fallback]", {
@@ -118,6 +138,13 @@ export async function POST(request: Request) {
         promptUsed,
         renderPromptType,
         moderationRetryCount,
+        renderMode,
+        fallbackReason,
+        initialPromptUsed,
+        visualQcInitial,
+        visualQcFinal,
+        visualQcRetryCount,
+        visualQcError,
         imageEditError,
         model: env.OPENAI_IMAGE_MODEL,
         size: env.OPENAI_IMAGE_SIZE,

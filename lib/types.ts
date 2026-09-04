@@ -121,6 +121,36 @@ export type CoachPhotographyShotType =
 
 export type CoachPhoneZoom = "1x" | "2x" | "3x";
 
+export type CoachCaptureFeasibilityConfidence = "low" | "medium" | "high";
+
+export interface CoachPhotographyCapturePlan {
+  schema_version: "1.0";
+  primary_change: string;
+  why: string;
+  subject_description: string;
+  scene_description: string;
+  lighting: string;
+  camera: {
+    zoom: CoachPhoneZoom;
+    move: string;
+    height: string;
+    viewpoint: string;
+  };
+  frame: {
+    body_crop: string;
+    subject_position: string;
+    gaze_space: string;
+    background_anchor: string;
+    edge_cleanup: string;
+  };
+  subject_action: string;
+  capture_cue: string;
+  scene_affordances: string[];
+  preserve: string[];
+  avoid: string[];
+  feasibility_confidence: CoachCaptureFeasibilityConfidence;
+}
+
 export interface CoachPhotographyCoachAssessment {
   current_shot_summary: string;
   main_problem: string;
@@ -186,10 +216,30 @@ export interface CoachPhotographyCoachResult {
   shot_plan: CoachPhotographyShotPlan;
   pose: CoachPhotographyPose;
   timing: CoachPhotographyTiming;
+  capture_plan: CoachPhotographyCapturePlan;
   user_tips: string[];
   generation_prompt: string;
   safe_render_prompt: string;
   text2image_prompt: string;
+}
+
+export interface CoachReferenceVisualQcScores {
+  retake_feasibility: number;
+  capture_plan_adherence: number;
+  preservation: number;
+  photographic_improvement: number;
+  anatomy_and_artifacts: number;
+}
+
+export interface CoachReferenceVisualQcResult {
+  schema_version: "1.0";
+  passed: boolean;
+  total_score: number;
+  scores: CoachReferenceVisualQcScores;
+  hard_failures: string[];
+  largest_mismatch: string | null;
+  retry_instruction: string | null;
+  notes: string[];
 }
 
 /** @deprecated v1.1 brief — kept for legacy QC fixtures only. */
